@@ -143,15 +143,15 @@ def insert_log(conn, log_data):
     cursor = conn.cursor()
     
     insert_query = """
-    INSERT INTO logs (id, insert_date, block_from, block_to, txs_insert, txs_amount, refreshed, refreshed_date, refreshed_id)
+    INSERT INTO logs (id, insert_date, block_from, block_to, txs_insert, txs_amount, refreshed, refreshed_date, refreshed_id, contract_address)
     OUTPUT INSERTED.id
-    VALUES (NEWID(), GETDATE(), ?, ?, ?, ?, 0, NULL, NULL)
+    VALUES (NEWID(), GETDATE(), ?, ?, ?, ?, 0, NULL, NULL, ?)
     """
-    cursor.execute(insert_query, log_data["block_from"], log_data["block_to"], log_data["txs_insert"], log_data["txs_amount"])
+    cursor.execute(insert_query, log_data["block_from"], log_data["block_to"], log_data["txs_insert"], log_data["txs_amount"], log_data["contract_address"])
     log_id = cursor.fetchone()[0]
     conn.commit()
     
-    print(f"Log insertado para bloques {log_data['block_from']} - {log_data['block_to']}")
+    print(f"Log insertado para bloques {log_data['block_from']} - {log_data['block_to']} (Contract: {log_data['contract_address']})")
     
     return log_id
 
@@ -204,17 +204,19 @@ def get_transactions_in_loop(contract_address, start_block, api_key, conn):
                     except Exception as e:
                         print(f"Error al procesar transacción: {e}")
 
-            # Insertar el log, incluso si no se encontraron transacciones
-            try:
-                log_data = {
-                    "block_from": start_block,
-                    "block_to": end_block,
-                    "txs_insert": inserted_count,
-                    "txs_amount": tx_count
-                }
-                insert_log(conn, log_data)
-            except Exception as e:
-                print(f"Error al insertar el log para bloques {start_block} - {end_block}: {e}")
+                    # Insertar el log, incluso si no se encontraron transacciones
+                    try:
+                        log_data = {
+                            "block_from": start_block,
+                            "block_to": end_block,
+                            "txs_insert": inserted_count,
+                            "txs_amount": tx_count,
+                            "contract_address": contract_address  # Nuevo campo añadido
+                        }
+                        insert_log(conn, log_data)
+                    except Exception as e:
+                        print(f"Error al insertar el log para bloques {start_block} - {end_block}: {e}")
+
 
             # Avanzar al siguiente bloque
             start_block = end_block + 1
