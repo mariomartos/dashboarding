@@ -72,8 +72,9 @@ def update_last_refresh(conn, contract_address):
 def get_first_block(conn, contract_address, api_key):
     try:
         cursor = conn.cursor()
-        query = "SELECT ISNULL(MAX(block_from), 0) FROM logs"
-        cursor.execute(query)
+        # Consulta SQL para obtener el bloque más alto registrado en logs para el contrato específico
+        query = "SELECT ISNULL(MAX(block_from), 0) FROM logs WHERE contract_address = ?"
+        cursor.execute(query, contract_address)
         result = cursor.fetchone()
         first_block = result[0] if result else 0
 
