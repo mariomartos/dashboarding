@@ -7,6 +7,7 @@ from datetime import datetime
 # Configuraciones
 SQL_SERVER = 'A7\\SQLEXPRESS'
 DATABASE_NAME = 'dashboards'
+SQL_TABLE = 'txs_prophet' 
 CONTRACT_ADDRESS = '0x3fa55eb91be2c5d72890da11a4c0269e7f786555'  
 BLOCK_RANGE = 1000  # Número de bloques a procesar en cada solicitud
 RETRY_INTERVAL = 10  # Tiempo en minutos entre intentos de reintento
@@ -122,7 +123,7 @@ def insert_transaction(conn, tx_data):
     
     # Comprobación de duplicados
     check_query = """
-    SELECT 1 FROM transactions
+    SELECT 1 FROM {SQL_TABLE}
     WHERE hash = ? AND date = ? AND block_number = ? AND [from] = ? AND [to] = ? AND amount = ?
     """
     cursor.execute(check_query, tx_data["hash"], tx_data["date"], tx_data["block_number"], tx_data["from"], tx_data["to"], tx_data["amount"])
@@ -131,7 +132,7 @@ def insert_transaction(conn, tx_data):
 
     # Inserción de la transacción con contract_address
     insert_query = """
-    INSERT INTO transactions (id, contract_address, hash, date, block_number, [from], [to], amount)
+    INSERT INTO {SQL_TABLE} (id, contract_address, hash, date, block_number, [from], [to], amount)
     VALUES (NEWID(), ?, ?, ?, ?, ?, ?, ?)
     """
     cursor.execute(insert_query, tx_data["contract_address"], tx_data["hash"], tx_data["date"], tx_data["block_number"], tx_data["from"], tx_data["to"], tx_data["amount"])
