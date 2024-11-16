@@ -7,6 +7,7 @@ from datetime import datetime
 # Configuraciones
 SQL_SERVER = 'A7\\SQLEXPRESS'
 DATABASE_NAME = 'dashboards'
+SQL_TABLE = 'txs_prophet' 
 CONTRACT_ADDRESS = '0x289Ff00235D2b98b0145ff5D4435d3e92f9540a6'  
 BLOCK_RANGE = 1000  # Número de bloques a procesar en cada solicitud
 RETRY_INTERVAL = 10  # Tiempo en minutos entre intentos de reintento
@@ -71,8 +72,9 @@ def update_last_refresh(conn, contract_address):
 def get_first_block(conn, contract_address, api_key):
     try:
         cursor = conn.cursor()
-        query = "SELECT ISNULL(MAX(block_from), 0) FROM logs"
-        cursor.execute(query)
+        # Consulta SQL para obtener el bloque más alto registrado en logs para el contrato específico
+        query = "SELECT ISNULL(MAX(block_from), 0) FROM logs WHERE contract_address = ?"
+        cursor.execute(query, contract_address)
         result = cursor.fetchone()
         first_block = result[0] if result else 0
 
@@ -117,12 +119,12 @@ def get_current_block(api_key):
         return None
 
 # Insertar una transacción en SQL Server si no existe duplicado
-def insert_transaction(conn, tx_data):
+def insert_transaction(conn, tx_data, sql_table):
     cursor = conn.cursor()
     
     # Comprobación de duplicados
-    check_query = """
-    SELECT 1 FROM transactions
+    check_query = f"""
+    SELECT 1 FROM {sql_table}
     WHERE hash = ? AND date = ? AND block_number = ? AND [from] = ? AND [to] = ? AND amount = ?
     """
     cursor.execute(check_query, tx_data["hash"], tx_data["date"], tx_data["block_number"], tx_data["from"], tx_data["to"], tx_data["amount"])
@@ -130,13 +132,14 @@ def insert_transaction(conn, tx_data):
         return False
 
     # Inserción de la transacción con contract_address
-    insert_query = """
-    INSERT INTO transactions (id, contract_address, hash, date, block_number, [from], [to], amount)
+    insert_query = f"""
+    INSERT INTO {sql_table} (id, contract_address, hash, date, block_number, [from], [to], amount)
     VALUES (NEWID(), ?, ?, ?, ?, ?, ?, ?)
     """
     cursor.execute(insert_query, tx_data["contract_address"], tx_data["hash"], tx_data["date"], tx_data["block_number"], tx_data["from"], tx_data["to"], tx_data["amount"])
     conn.commit()
     return True
+
 
 # Insertar un registro de log y devolver el log_id
 def insert_log(conn, log_data):
@@ -156,7 +159,7 @@ def insert_log(conn, log_data):
     return log_id
 
 # Obtener transacciones en bucle hasta el bloque actual y registrar en SQL Server
-def get_transactions_in_loop(contract_address, start_block, api_key, conn):
+def get_transactions_in_loop(contract_address, start_block, api_key, conn, sql_table):
     while True:
         current_block = get_current_block(api_key)
         if not current_block:
@@ -177,8 +180,8 @@ def get_transactions_in_loop(contract_address, start_block, api_key, conn):
             response.raise_for_status()
             
             data = response.json()
-            tx_count = 0
-            inserted_count = 0
+            tx_count = 0  # Total de transacciones en el rango
+            inserted_count = 0  # Total de transacciones insertadas
             
             # Procesar transacciones si se encuentran
             if data.get('status') == '1' and data.get('result'):
@@ -198,25 +201,24 @@ def get_transactions_in_loop(contract_address, start_block, api_key, conn):
                             "amount": float(tx.get("value")) / (10 ** int(tx.get("tokenDecimal", 18)))
                         }
                         # Verificar si se inserta correctamente
-                        success = insert_transaction(conn, tx_data)
+                        success = insert_transaction(conn, tx_data, sql_table)
                         if success:
                             inserted_count += 1
                     except Exception as e:
                         print(f"Error al procesar transacción: {e}")
 
-                    # Insertar el log, incluso si no se encontraron transacciones
-                    try:
-                        log_data = {
-                            "block_from": start_block,
-                            "block_to": end_block,
-                            "txs_insert": inserted_count,
-                            "txs_amount": tx_count,
-                            "contract_address": contract_address  # Nuevo campo añadido
-                        }
-                        insert_log(conn, log_data)
-                    except Exception as e:
-                        print(f"Error al insertar el log para bloques {start_block} - {end_block}: {e}")
-
+            # Insertar el log para el rango de bloques procesado
+            try:
+                log_data = {
+                    "block_from": start_block,
+                    "block_to": end_block,
+                    "txs_insert": inserted_count,
+                    "txs_amount": tx_count,
+                    "contract_address": contract_address
+                }
+                insert_log(conn, log_data)
+            except Exception as e:
+                print(f"Error al insertar el log para bloques {start_block} - {end_block}: {e}")
 
             # Avanzar al siguiente bloque
             start_block = end_block + 1
@@ -239,7 +241,7 @@ if __name__ == "__main__":
                     first_block = get_first_block(conn, CONTRACT_ADDRESS, api_key)
                     if first_block:
                         print(f"Primer bloque {CONTRACT_ADDRESS}: {first_block}")
-                        get_transactions_in_loop(CONTRACT_ADDRESS, first_block, api_key, conn)
+                        get_transactions_in_loop(CONTRACT_ADDRESS, first_block, api_key, conn, SQL_TABLE)
                         update_last_refresh(conn, CONTRACT_ADDRESS)
                 else:
                     print(f"No se cumple el umbral de refresco ({REFRESH_THRESHOLD} minutos). Esperando {RETRY_INTERVAL} minutos...")
