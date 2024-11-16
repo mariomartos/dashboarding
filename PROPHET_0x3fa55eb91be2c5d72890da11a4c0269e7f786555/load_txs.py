@@ -180,7 +180,7 @@ def insert_log(conn, log_data):
 # Obtener transacciones en bucle hasta el bloque actual y registrar en SQL Server
 def get_transactions_in_loop(contract_address, start_block, api_key, conn, sql_table):
     while True:
-        current_block = get_current_block(api_key)
+        current_block = get_current_block(contract_address, api_key)
         if not current_block:
             print("No se pudo obtener el bloque actual.")
             break

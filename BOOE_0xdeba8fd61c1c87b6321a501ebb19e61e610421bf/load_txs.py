@@ -7,7 +7,7 @@ from datetime import datetime
 # Configuraciones
 SQL_SERVER = 'A7\\SQLEXPRESS'
 DATABASE_NAME = 'dashboards'
-SQL_TABLE = 'txs_prophet' 
+SQL_TABLE = 'txs_booe' 
 CONTRACT_ADDRESS = '0x289Ff00235D2b98b0145ff5D4435d3e92f9540a6'  
 BLOCK_RANGE = 1000  # Número de bloques a procesar en cada solicitud
 RETRY_INTERVAL = 10  # Tiempo en minutos entre intentos de reintento
@@ -136,6 +136,7 @@ def get_current_block(contract_address, api_key):
         print(f"Error al procesar la respuesta de la API: {e}")
         return None
 
+
 # Insertar una transacción en SQL Server si no existe duplicado
 def insert_transaction(conn, tx_data, sql_table):
     cursor = conn.cursor()
@@ -179,7 +180,7 @@ def insert_log(conn, log_data):
 # Obtener transacciones en bucle hasta el bloque actual y registrar en SQL Server
 def get_transactions_in_loop(contract_address, start_block, api_key, conn, sql_table):
     while True:
-        current_block = get_current_block(api_key)
+        current_block = get_current_block(contract_address, api_key)
         if not current_block:
             print("No se pudo obtener el bloque actual.")
             break
