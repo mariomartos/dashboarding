@@ -119,7 +119,6 @@ def get_current_block(api_key):
         return None
 
 # Insertar una transacción en SQL Server si no existe duplicado
-# Insertar una transacción en SQL Server si no existe duplicado
 def insert_transaction(conn, tx_data, sql_table):
     cursor = conn.cursor()
     
@@ -181,8 +180,8 @@ def get_transactions_in_loop(contract_address, start_block, api_key, conn, sql_t
             response.raise_for_status()
             
             data = response.json()
-            tx_count = 0
-            inserted_count = 0
+            tx_count = 0  # Total de transacciones en el rango
+            inserted_count = 0  # Total de transacciones insertadas
             
             # Procesar transacciones si se encuentran
             if data.get('status') == '1' and data.get('result'):
@@ -208,19 +207,18 @@ def get_transactions_in_loop(contract_address, start_block, api_key, conn, sql_t
                     except Exception as e:
                         print(f"Error al procesar transacción: {e}")
 
-                    # Insertar el log, incluso si no se encontraron transacciones
-                    try:
-                        log_data = {
-                            "block_from": start_block,
-                            "block_to": end_block,
-                            "txs_insert": inserted_count,
-                            "txs_amount": tx_count,
-                            "contract_address": contract_address  # Nuevo campo añadido
-                        }
-                        insert_log(conn, log_data)
-                    except Exception as e:
-                        print(f"Error al insertar el log para bloques {start_block} - {end_block}: {e}")
-
+            # Insertar el log para el rango de bloques procesado
+            try:
+                log_data = {
+                    "block_from": start_block,
+                    "block_to": end_block,
+                    "txs_insert": inserted_count,
+                    "txs_amount": tx_count,
+                    "contract_address": contract_address
+                }
+                insert_log(conn, log_data)
+            except Exception as e:
+                print(f"Error al insertar el log para bloques {start_block} - {end_block}: {e}")
 
             # Avanzar al siguiente bloque
             start_block = end_block + 1
