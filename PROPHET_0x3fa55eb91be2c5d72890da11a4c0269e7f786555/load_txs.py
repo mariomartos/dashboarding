@@ -106,17 +106,36 @@ def get_first_block(conn, contract_address, api_key):
         return None
 
 # Obtener el número de bloque actual
-def get_current_block(api_key):
-    api_url = f"https://api.etherscan.io/api?module=proxy&action=eth_blockNumber&apikey={api_key}"
+def get_current_block(contract_address, api_key):
+    # URL de la API para obtener la última transacción del contrato
+    api_url = f"https://api.etherscan.io/api?module=account&action=tokentx&contractaddress={contract_address}&startblock=0&endblock=99999999&sort=desc&apikey={api_key}"
+    
     try:
+        # Hacer la solicitud a la API
         response = requests.get(api_url, timeout=30)
         response.raise_for_status()
+        
+        # Parsear la respuesta de la API
         data = response.json()
-        current_block = int(data["result"], 16)
+        
+        # Validar la respuesta
+        if data.get('status') != '1' or not data.get('result'):
+            print(f"Error en la respuesta de Etherscan: {data.get('message')}")
+            return None
+
+        # Extraer el bloque más reciente de la última transacción
+        latest_transaction = data['result'][0]  # Primera transacción (ordenada por bloque descendente)
+        current_block = int(latest_transaction['blockNumber'])
+        
         return current_block
+    
     except requests.exceptions.RequestException as e:
         print(f"Error al obtener el bloque actual: {e}")
         return None
+    except (KeyError, IndexError) as e:
+        print(f"Error al procesar la respuesta de la API: {e}")
+        return None
+
 
 # Insertar una transacción en SQL Server si no existe duplicado
 def insert_transaction(conn, tx_data, sql_table):
