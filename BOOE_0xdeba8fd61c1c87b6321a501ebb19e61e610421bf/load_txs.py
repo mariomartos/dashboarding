@@ -9,7 +9,7 @@ SQL_SERVER = 'A7\\SQLEXPRESS'
 DATABASE_NAME = 'dashboards'
 SQL_TABLE = 'txs_booe' 
 CONTRACT_ADDRESS = '0x289Ff00235D2b98b0145ff5D4435d3e92f9540a6'  
-BLOCK_RANGE = 1000  # Número de bloques a procesar en cada solicitud
+BLOCK_RANGE = 2000  # Número de bloques a procesar en cada solicitud
 RETRY_INTERVAL = 10  # Tiempo en minutos entre intentos de reintento
 REFRESH_THRESHOLD = 15  # Tiempo mínimo en minutos desde el último refresh para ejecutar
 
